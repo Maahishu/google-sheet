@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Drive API Example</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://apis.google.com/js/api.js"></script>
+</head>
+<body>
+    <h1>Google Drive API Example</h1>
+    <div id="g_id_onload"
+         data-client_id="984807115213-dlqujm57anp23vm845eb5rm9frmgqj7r.apps.googleusercontent.com"
+         data-callback="handleCredentialResponse">
+    </div>
+    <div class="g_id_signin" data-type="standard"></div>
+    <button id="signout_button" style="display: none;">Sign Out</button>
+    <pre id="content"></pre>
+
+    <script>
+        var API_KEY = 'AIzaSyAaPu8dtm9njoAg5cRnkeAH16lOpq0VmxY';
+        var CLIENT_ID = '984807115213-dlqujm57anp23vm845eb5rm9frmgqj7r.apps.googleusercontent.com';
+
+        // Array of API discovery doc URLs for APIs used by the quickstart
+        var DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"];
+
+        // Authorization scopes required by the API; multiple scopes can be
+        // included, separated by spaces.
+        var SCOPES = 'https://www.googleapis.com/auth/drive.metadata.readonly';
+
+        var signoutButton = document.getElementById('signout_button');
+        var content = document.getElementById('content');
+        var tokenClient;
+        var gapiInited = false;
+        var gisInited = false;
+
+        
+        function gapiLoaded() {
+            gapi.load('client', initializeGapiClient);
+        }
+
+        /**
+         * Callback after the API client is loaded. Loads the
+         * discovery doc to initialize the API.
+         */
+        async function initializeGapiClient() {
+            await gapi.client.init({
+                apiKey: API_KEY,
+                discoveryDocs: DISCOVERY_DOCS,
+            });
+            gapiInited = true;
+            maybeEnableButtons();
+        }
+
+        /**
+         * Callback after Google Identity Services are loaded.
+         */
+        function gisLoaded() {
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: CLIENT_ID,
+                scope: SCOPES,
+                callback: '', // defined later
+            });
+            gisInited = true;
+            maybeEnableButtons();
+        }
+
+        /**
+         * Enables user interaction after all libraries are loaded.
+         */
+        function maybeEnableButtons() {
+            if (gapiInited && gisInited) {
+                document.getElementsByClassName('g_id_signin')[0].style.display = 'block';
+                signoutButton.style.display = 'block';
+            }
+        }
+
+        /**
+         * Sign out the user upon button click.
+         */
+        function handleSignoutClick() {
+            var tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: CLIENT_ID,
+                scope: SCOPES,
+                callback: '', // defined later
+            });
+            tokenClient.revoke(tokenClient.token);
+            signoutButton.style.display = 'none';
+            document.getElementsByClassName('g_id_signin')[0].style.display = 'block';
+            appendPre('Signed out.');
+        }
+
+        /**
+         * Handle the response from Google Identity Services.
+         */
+        function handleCredentialResponse(response) {
+            tokenClient.callback = async (response) => {
+                if (response.error !== undefined) {
+                    throw(response);
+                }
+                appendPre('Access token: ' + response.access_token);
+                await listFiles();
+            };
+
+            if (gapiInited) {
+                tokenClient.requestAccessToken({prompt: ''});
+            }
+        }
+
+        /**
+         * Append a pre element to the body containing the given message
+         * as its text node. Used to display the results of the API call.
+         *
+         * @param {string} message Text to be
